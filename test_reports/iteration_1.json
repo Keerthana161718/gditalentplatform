@@ -1,0 +1,42 @@
+{
+  "summary": "Verified auth, role-based dashboards, health/demo fallbacks, protected endpoints, and certificate PDF generation. All 4 seeded roles (admin/coach/student/parent) log in and land on role-specific dashboards with correct sidebars. Anonymous access is blocked (401) and role restrictions return 403. Health endpoint correctly reports database_mode=sqlite-demo, summary_mode=local-demo, storage_mode=local-demo. Certificate generate + PDF download returns real application/pdf (2891 bytes, %PDF magic). Parent-summary local fallback works. Parent and Student dashboards correctly hide management submit buttons. CRITICAL BLOCKER: seeded activities reference coach_id=2 but the actual seeded coach user (Jordan Lee / coach@talentdemo.com) has id=6 — so coach & student dashboards show 0 activities, 0 roster members, 0 materials, and every coach mutation endpoint (materials, assessments, events, certificates, parent-summary) is rejected with 404 'Activity not visible to this coach'. Same orphaning affects student enrollments (Enrolled tracks 0, Practice hours 0). Root cause is almost certainly the seed_demo_data() idempotency check leaving stale rows created before the .local -> .talentdemo email fix.",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "GET /api/health returns 200 with correct demo-mode flags",
+    "Anonymous GET /api/dashboard -> 401 Not authenticated",
+    "POST /api/auth/login works for all 4 roles (admin/coach/student/parent)",
+    "GET /api/dashboard returns 200 for all 4 roles with role-specific keys",
+    "Student POST /api/activities -> 403 (role restriction)",
+    "Parent POST /api/materials -> 403 (role restriction)",
+    "Admin POST /api/activities (correct schema title/track/etc) -> 200",
+    "Admin POST /api/materials multipart youtube -> 200",
+    "Admin POST /api/ai/parent-summary -> 200 (local-demo fallback summary)",
+    "Admin POST /api/certificates/generate -> 200 with download_url",
+    "GET /api/certificates/{id}/download -> 200 application/pdf, valid %PDF magic",
+    "Login page renders, all four role dashboards render with role-specific dynamic sidebars",
+    "Parent dashboard hides material/assessment/event/certificate/practice/summary submit buttons",
+    "Student dashboard hides coach/admin management submit buttons"
+  ],
+  "failed": [
+    {
+      "area": "Seed data / DB state",
+      "issue": "Activities are assigned coach_id=2, but the current seeded coach user has id=6. Coach's visible activities/roster/materials are empty, breaking all coach flows (materials, assessments, events, certificates, parent-summary) end-to-end from the UI.",
+      "evidence": "GET /api/activities as admin returns activities with coach_id=2 (Basketball Elite Squad, Choir Performance Lab, Guitar Technique Studio). GET /api/auth/me for coach returns id=6. Coach dashboard shows Assigned squads=0, Roster members=0. POST /api/materials/assessments/events/certificates/ai/parent-summary as coach with a real activity_id all fail with 404 'Activity not visible to this coach'.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Seed data / DB state",
+      "issue": "Student (id=7) is not enrolled in any activity; Student dashboard shows Enrolled tracks=0 and no materials, so 'assigned practice materials' and practice-log submission cannot be exercised against a real assigned activity via the UI.",
+      "evidence": "GET /api/activities as student returns []. GET /api/dashboard as student shows activities=[], materials count=0, enrolled tracks card=0.",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "Fix seed_demo_data() idempotency: either wipe /app/backend/*.sqlite (or whichever demo DB file) and re-run seeding, or update the seed to re-point Activity.coach_id and Enrollment.student_id to the currently-seeded users (admin/coach/student/parent) when they already exist. After the fix, coach must see roster > 0 and student must see enrolled_tracks > 0.",
+    "Re-run coach and student end-to-end flows (material upload/YouTube publish, assessment, event, certificate, parent-summary, practice log submission) after seed fix — none of these could be validated as the coach/student role due to the seed mismatch.",
+    "Consider exposing a POST /api/logout button with data-testid=\"logout-button\" (current UI uses text 'Sign out' with no test id, minor)."
+  ],
+  "success_rate": {"backend": "80%", "frontend": "70%"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
