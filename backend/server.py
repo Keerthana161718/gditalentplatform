@@ -649,154 +649,241 @@ def seed_demo_data() -> None:
         coach = seeded_users["coach"]
         student = seeded_users["student"]
 
-        if db.query(Activity).count() == 0:
-            activities = [
-                Activity(
-                    title="Basketball Elite Squad",
-                    category="sports",
-                    track="Team Play",
-                    description="Footwork, tactical awareness, transition defense, and leadership reps.",
-                    schedule="Mon • Wed • Fri • 16:00",
-                    capacity=20,
-                    coach_id=coach.id,
-                ),
-                Activity(
-                    title="Choir Performance Lab",
-                    category="music",
-                    track="Choral Harmony",
-                    description="Breath control, stage presence, harmony blending, and concert prep.",
-                    schedule="Tue • Thu • 15:30",
-                    capacity=35,
-                    coach_id=coach.id,
-                ),
-                Activity(
-                    title="Guitar Technique Studio",
-                    category="music",
-                    track="Solo Technique",
-                    description="Fingerstyle precision, dynamic phrasing, and recital readiness.",
-                    schedule="Sat • 10:00",
-                    capacity=16,
-                    coach_id=coach.id,
-                ),
-            ]
-            db.add_all(activities)
-            db.commit()
+        activity_specs = [
+            {
+                "title": "Basketball Elite Squad",
+                "category": "sports",
+                "track": "Team Play",
+                "description": "Footwork, tactical awareness, transition defense, and leadership reps.",
+                "schedule": "Mon • Wed • Fri • 16:00",
+                "capacity": 20,
+            },
+            {
+                "title": "Choir Performance Lab",
+                "category": "music",
+                "track": "Choral Harmony",
+                "description": "Breath control, stage presence, harmony blending, and concert prep.",
+                "schedule": "Tue • Thu • 15:30",
+                "capacity": 35,
+            },
+            {
+                "title": "Guitar Technique Studio",
+                "category": "music",
+                "track": "Solo Technique",
+                "description": "Fingerstyle precision, dynamic phrasing, and recital readiness.",
+                "schedule": "Sat • 10:00",
+                "capacity": 16,
+            },
+        ]
 
-        activities = db.query(Activity).order_by(Activity.id.asc()).all()
-        activity_map = {activity.title: activity for activity in activities}
+        activity_map: dict[str, Activity] = {}
+        for spec in activity_specs:
+            activity = db.query(Activity).filter(Activity.title == spec["title"]).first()
+            if not activity:
+                activity = Activity(**spec, coach_id=coach.id)
+                db.add(activity)
+                db.flush()
+            else:
+                activity.category = spec["category"]
+                activity.track = spec["track"]
+                activity.description = spec["description"]
+                activity.schedule = spec["schedule"]
+                activity.capacity = spec["capacity"]
+                activity.coach_id = coach.id
+            activity_map[spec["title"]] = activity
+        db.commit()
 
-        if db.query(Enrollment).count() == 0:
-            db.add_all(
-                [
-                    Enrollment(student_id=student.id, activity_id=activity_map["Basketball Elite Squad"].id, lead_role="captain"),
-                    Enrollment(student_id=student.id, activity_id=activity_map["Choir Performance Lab"].id, lead_role="section lead"),
-                ]
+        enrollment_specs = [
+            ("Basketball Elite Squad", "captain"),
+            ("Choir Performance Lab", "section lead"),
+        ]
+        for activity_title, lead_role in enrollment_specs:
+            activity = activity_map[activity_title]
+            enrollment = db.query(Enrollment).filter(Enrollment.student_id == student.id, Enrollment.activity_id == activity.id).first()
+            if not enrollment:
+                db.add(Enrollment(student_id=student.id, activity_id=activity.id, lead_role=lead_role))
+            else:
+                enrollment.status = "active"
+                enrollment.lead_role = lead_role
+        db.commit()
+
+        material_specs = [
+            {
+                "title": "Transition Defense Film Study",
+                "activity_title": "Basketball Elite Squad",
+                "material_type": "youtube",
+                "description": "Review spacing and recovery angles before the next scrimmage.",
+                "youtube_url": "https://www.youtube.com/watch?v=J---aiyznGQ",
+            },
+            {
+                "title": "Choir Warmup Structure",
+                "activity_title": "Choir Performance Lab",
+                "material_type": "lesson-plan",
+                "description": "Vocal ladder drills, resonance work, and articulation routine for rehearsal days.",
+                "youtube_url": None,
+            },
+        ]
+        for spec in material_specs:
+            activity = activity_map[spec["activity_title"]]
+            material = db.query(Material).filter(Material.title == spec["title"]).first()
+            if not material:
+                material = Material(
+                    activity_id=activity.id,
+                    coach_id=coach.id,
+                    title=spec["title"],
+                    material_type=spec["material_type"],
+                    description=spec["description"],
+                    youtube_url=spec["youtube_url"],
+                )
+                db.add(material)
+            else:
+                material.activity_id = activity.id
+                material.coach_id = coach.id
+                material.material_type = spec["material_type"]
+                material.description = spec["description"]
+                material.youtube_url = spec["youtube_url"]
+        db.commit()
+
+        practice_specs = [
+            {
+                "activity_title": "Basketball Elite Squad",
+                "duration_minutes": 85,
+                "mood": "Focused",
+                "notes": "Worked on ball protection, transition reads, and communication in the press break.",
+            },
+            {
+                "activity_title": "Choir Performance Lab",
+                "duration_minutes": 60,
+                "mood": "Confident",
+                "notes": "Improved breath pacing and entry timing in the alto section with strong posture.",
+            },
+        ]
+        for spec in practice_specs:
+            activity = activity_map[spec["activity_title"]]
+            practice_log = (
+                db.query(PracticeLog)
+                .filter(PracticeLog.student_id == student.id, PracticeLog.activity_id == activity.id)
+                .order_by(PracticeLog.created_at.asc())
+                .first()
             )
-            db.commit()
-
-        if db.query(Material).count() == 0:
-            db.add_all(
-                [
-                    Material(
-                        activity_id=activity_map["Basketball Elite Squad"].id,
-                        coach_id=coach.id,
-                        title="Transition Defense Film Study",
-                        material_type="youtube",
-                        description="Review spacing and recovery angles before the next scrimmage.",
-                        youtube_url="https://www.youtube.com/watch?v=J---aiyznGQ",
-                    ),
-                    Material(
-                        activity_id=activity_map["Choir Performance Lab"].id,
-                        coach_id=coach.id,
-                        title="Choir Warmup Structure",
-                        material_type="lesson-plan",
-                        description="Vocal ladder drills, resonance work, and articulation routine for rehearsal days.",
-                    ),
-                ]
-            )
-            db.commit()
-
-        if db.query(PracticeLog).count() == 0:
-            db.add_all(
-                [
+            summary_text = build_parent_summary(student.name, activity.title, spec["notes"], spec["duration_minutes"])
+            if not practice_log:
+                db.add(
                     PracticeLog(
                         student_id=student.id,
-                        activity_id=activity_map["Basketball Elite Squad"].id,
-                        duration_minutes=85,
-                        mood="Focused",
-                        notes="Worked on ball protection, transition reads, and communication in the press break.",
-                        summary_text=build_parent_summary(student.name, "Basketball Elite Squad", "Worked on ball protection, transition reads, and communication in the press break.", 85),
-                    ),
-                    PracticeLog(
-                        student_id=student.id,
-                        activity_id=activity_map["Choir Performance Lab"].id,
-                        duration_minutes=60,
-                        mood="Confident",
-                        notes="Improved breath pacing and entry timing in the alto section with strong posture.",
-                        summary_text=build_parent_summary(student.name, "Choir Performance Lab", "Improved breath pacing and entry timing in the alto section with strong posture.", 60),
-                    ),
-                ]
-            )
-            db.commit()
+                        activity_id=activity.id,
+                        duration_minutes=spec["duration_minutes"],
+                        mood=spec["mood"],
+                        notes=spec["notes"],
+                        summary_text=summary_text,
+                    )
+                )
+            else:
+                practice_log.duration_minutes = spec["duration_minutes"]
+                practice_log.mood = spec["mood"]
+                practice_log.notes = spec["notes"]
+                practice_log.summary_text = summary_text
+        db.commit()
 
-        if db.query(Assessment).count() == 0:
-            db.add_all(
-                [
+        assessment_specs = [
+            {
+                "activity_title": "Basketball Elite Squad",
+                "skill_label": "Decision making",
+                "score": 88,
+                "coach_notes": "Reading the weak-side help faster and keeping teammates organized.",
+            },
+            {
+                "activity_title": "Choir Performance Lab",
+                "skill_label": "Stage presence",
+                "score": 91,
+                "coach_notes": "Very steady projection with confident body language across the set.",
+            },
+        ]
+        for spec in assessment_specs:
+            activity = activity_map[spec["activity_title"]]
+            assessment = (
+                db.query(Assessment)
+                .filter(
+                    Assessment.student_id == student.id,
+                    Assessment.activity_id == activity.id,
+                    Assessment.skill_label == spec["skill_label"],
+                )
+                .first()
+            )
+            if not assessment:
+                db.add(
                     Assessment(
                         student_id=student.id,
-                        activity_id=activity_map["Basketball Elite Squad"].id,
-                        skill_label="Decision making",
-                        score=88,
-                        coach_notes="Reading the weak-side help faster and keeping teammates organized.",
-                    ),
-                    Assessment(
-                        student_id=student.id,
-                        activity_id=activity_map["Choir Performance Lab"].id,
-                        skill_label="Stage presence",
-                        score=91,
-                        coach_notes="Very steady projection with confident body language across the set.",
-                    ),
-                ]
-            )
-            db.commit()
+                        activity_id=activity.id,
+                        skill_label=spec["skill_label"],
+                        score=spec["score"],
+                        coach_notes=spec["coach_notes"],
+                    )
+                )
+            else:
+                assessment.score = spec["score"]
+                assessment.coach_notes = spec["coach_notes"]
+        db.commit()
 
-        if db.query(Event).count() == 0:
-            db.add_all(
-                [
+        event_specs = [
+            {
+                "title": "Regional Basketball Showcase",
+                "event_type": "tournament",
+                "activity_title": "Basketball Elite Squad",
+                "event_date": utc_now() + timedelta(days=7),
+                "location": "North Hall Arena",
+                "details": "Warm-up check-in 45 minutes early. Press break and transition sets in focus.",
+            },
+            {
+                "title": "Spring Harmony Concert",
+                "event_type": "concert",
+                "activity_title": "Choir Performance Lab",
+                "event_date": utc_now() + timedelta(days=12),
+                "location": "City Performing Arts Center",
+                "details": "Full dress rehearsal one day before. Alto section leading opening chorus.",
+            },
+        ]
+        for spec in event_specs:
+            activity = activity_map[spec["activity_title"]]
+            event = db.query(Event).filter(Event.title == spec["title"]).first()
+            if not event:
+                db.add(
                     Event(
-                        title="Regional Basketball Showcase",
-                        event_type="tournament",
-                        activity_id=activity_map["Basketball Elite Squad"].id,
-                        event_date=utc_now() + timedelta(days=7),
-                        location="North Hall Arena",
-                        details="Warm-up check-in 45 minutes early. Press break and transition sets in focus.",
+                        title=spec["title"],
+                        event_type=spec["event_type"],
+                        activity_id=activity.id,
+                        event_date=spec["event_date"],
+                        location=spec["location"],
+                        details=spec["details"],
                         leader_student_id=student.id,
-                    ),
-                    Event(
-                        title="Spring Harmony Concert",
-                        event_type="concert",
-                        activity_id=activity_map["Choir Performance Lab"].id,
-                        event_date=utc_now() + timedelta(days=12),
-                        location="City Performing Arts Center",
-                        details="Full dress rehearsal one day before. Alto section leading opening chorus.",
-                        leader_student_id=student.id,
-                    ),
-                ]
-            )
-            db.commit()
+                    )
+                )
+            else:
+                event.event_type = spec["event_type"]
+                event.activity_id = activity.id
+                event.event_date = spec["event_date"]
+                event.location = spec["location"]
+                event.details = spec["details"]
+                event.leader_student_id = student.id
+        db.commit()
 
-        if db.query(Badge).count() == 0:
-            db.add_all(
-                [
-                    Badge(student_id=student.id, title="Consistency Star", description="Logged practice across both sport and music tracks.", tone="blue"),
-                    Badge(student_id=student.id, title="Stage Presence", description="Demonstrated strong confidence during choir rehearsal.", tone="purple"),
-                    Badge(student_id=student.id, title="Captain's Voice", description="Led teammates with clear communication during drills.", tone="green"),
-                ]
-            )
-            db.commit()
+        badge_specs = [
+            ("Consistency Star", "Logged practice across both sport and music tracks.", "blue"),
+            ("Stage Presence", "Demonstrated strong confidence during choir rehearsal.", "purple"),
+            ("Captain's Voice", "Led teammates with clear communication during drills.", "green"),
+        ]
+        for title, description, tone in badge_specs:
+            badge = db.query(Badge).filter(Badge.student_id == student.id, Badge.title == title).first()
+            if not badge:
+                db.add(Badge(student_id=student.id, title=title, description=description, tone=tone))
+            else:
+                badge.description = description
+                badge.tone = tone
+        db.commit()
 
-        if db.query(Certificate).count() == 0:
-            basketball = activity_map["Basketball Elite Squad"]
+        basketball = activity_map["Basketball Elite Squad"]
+        certificate = db.query(Certificate).filter(Certificate.student_id == student.id, Certificate.activity_id == basketball.id, Certificate.title == "Certificate of Achievement").first()
+        if not certificate:
             badges = db.query(Badge).filter(Badge.student_id == student.id).all()
             pdf_bytes = make_certificate_pdf(student, basketball, "Certificate of Achievement", "Consistency Star", badges)
             storage_path = storage_service.upload_bytes(
