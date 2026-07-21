@@ -577,6 +577,7 @@ const DashboardShell = ({ token, user, onLogout, theme, toggleTheme }) => {
 
   useEffect(() => {
     fetchDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const runAction = async (actionName, handler) => {
