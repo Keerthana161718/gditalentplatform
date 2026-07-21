@@ -583,7 +583,7 @@ def make_certificate_pdf(student: User, activity: Activity, title: str, badge_la
 
 
 def write_test_credentials_file(demo_accounts: dict[str, dict[str, str]]) -> None:
-    memory_dir = Path("/app/memory")
+    memory_dir = ROOT_DIR.parent / "memory"
     memory_dir.mkdir(parents=True, exist_ok=True)
     content = """# Demo Accounts\n\n"""
     for role, account in demo_accounts.items():
