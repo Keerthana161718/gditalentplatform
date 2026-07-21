@@ -217,11 +217,11 @@ const LoginScreen = ({ onLogin, theme, toggleTheme }) => {
             Nexus Talent <span className="text-blue-600 dark:text-blue-400">Hub</span>
           </h1>
           <p className="hero-description mt-4 text-base" data-testid="login-hero-description">
-            The next-generation sports & music talent development matrix for GDI Nexus. Empowering coaches, students, and parents with secure SQL persistence and AI analytics.
+            The next-generation sports & music talent development matrix for GDI Nexus. Empowering coaches, students, and parents with secure Learning Management System.
           </p>
         </div>
 
-        <div className="hero-status-grid" data-testid="hero-status-grid">
+        <div className="hero-status-grid" data-testid="hero-status-grid" style={{ display: "none" }}>
           <div className="status-tile" data-testid="status-database-mode">
             <span className="status-label">Database</span>
             <strong className="flex items-center gap-1.5 mt-1">
@@ -754,7 +754,7 @@ const DashboardShell = ({ token, user, onLogout, theme, toggleTheme }) => {
         </Card>
       </div>
 
-      <Card className="glass-panel status-card" data-testid="service-status-card">
+      <Card className="glass-panel status-card" data-testid="service-status-card" style={{ display: "none" }}>
         <CardHeader>
           <CardTitle data-testid="service-status-title">Implementation modes</CardTitle>
           <CardDescription data-testid="service-status-copy">
@@ -2297,7 +2297,7 @@ const DashboardShell = ({ token, user, onLogout, theme, toggleTheme }) => {
                 <Moon size={18} className="text-slate-700" />
               )}
             </Button>
-            <div className="topbar-chip-row hidden md:flex" data-testid="topbar-chip-row">
+            <div className="topbar-chip-row" data-testid="topbar-chip-row" style={{ display: "none" }}>
               <Badge className="hero-chip badge-tone-blue" data-testid="chip-summary-mode">
                 {dashboard.service_status.summary_mode}
               </Badge>
