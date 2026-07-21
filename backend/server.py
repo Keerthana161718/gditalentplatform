@@ -347,6 +347,21 @@ class AssetStorageService:
             raise FileNotFoundError(storage_path)
         return local_path.read_bytes()
 
+    def delete_file(self, storage_path: str) -> None:
+        if self.blob_client:
+            try:
+                blob = self.blob_client.get_blob_client(storage_path)
+                blob.delete_blob()
+            except Exception:
+                pass
+        else:
+            local_path = self.local_root / storage_path
+            if local_path.exists():
+                try:
+                    local_path.unlink()
+                except Exception:
+                    pass
+
 
 summary_service = AzureSummaryService()
 storage_service = AssetStorageService()
@@ -1122,6 +1137,27 @@ def stream_material(material_id: int, current_user: User = Depends(get_current_u
         raise HTTPException(status_code=404, detail="File asset not found")
     media_type = mimetypes.guess_type(material.asset_path)[0] or "application/octet-stream"
     return StreamingResponse(iter([payload]), media_type=media_type)
+
+
+@api_router.delete("/materials/{material_id}")
+def delete_material(
+    material_id: int,
+    current_user: User = Depends(require_roles("admin", "coach")),
+    db: Session = Depends(get_db),
+):
+    material = db.get(Material, material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    if current_user.role == "coach" and material.coach_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this material")
+
+    if material.asset_path:
+        storage_service.delete_file(material.asset_path)
+
+    db.delete(material)
+    db.commit()
+    return {"message": "Material deleted"}
 
 
 @api_router.post("/practice-logs")

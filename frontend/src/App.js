@@ -31,6 +31,7 @@ import {
   Activity as ActivityIcon,
   Menu,
   X,
+  Trash2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -1208,16 +1209,35 @@ const DashboardShell = ({ token, user, onLogout, theme, toggleTheme }) => {
           <CardContent className="stack-lg">
             {dashboard.materials.map((material) => (
               <div className="material-card" key={material.id} data-testid={`material-card-${material.id}`}>
-                <div className="material-card-header">
+                <div className="material-card-header flex items-start justify-between">
                   <div>
                     <strong data-testid={`material-title-${material.id}`}>{material.title}</strong>
                     <p className="table-subcopy" data-testid={`material-activity-${material.id}`}>
                       {material.activity_title}
                     </p>
                   </div>
-                  <Badge className={`hero-chip ${toneClassMap[material.material_type === "youtube" ? "purple" : material.material_type === "video-upload" ? "green" : "blue"]}`} data-testid={`material-type-${material.id}`}>
-                    {material.material_type}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge className={`hero-chip ${toneClassMap[material.material_type === "youtube" ? "purple" : material.material_type === "video-upload" ? "green" : "blue"]}`} data-testid={`material-type-${material.id}`}>
+                      {material.material_type}
+                    </Badge>
+                    {(user.role === "admin" || user.role === "coach") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1.5 h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors border-none"
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to delete this material?")) {
+                            runAction("delete-material", async () => {
+                              await axios.delete(`${API}/materials/${material.id}`, apiConfig(token));
+                              toast.success("Material deleted");
+                            });
+                          }
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <p className="material-copy" data-testid={`material-description-${material.id}`}>{material.description || "No additional description"}</p>
                 {material.youtube_url ? (
