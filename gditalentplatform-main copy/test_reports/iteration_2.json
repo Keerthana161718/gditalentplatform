@@ -1,0 +1,43 @@
+{
+  "summary": "Regression of the iteration-1 seed blocker: fully resolved. Coach user (id=6) now owns all 3 seeded activities (coach_id=6), and student (id=7) is enrolled in 2 activities. All coach mutation endpoints (materials youtube, parent-summary, assessments, events, certificate generate + PDF download) succeed against seeded activity_id=1. Student practice-log submission succeeds and auto-generates a parent summary. UI verified: coach dashboard shows Assigned squads=3 / Roster members=2 / Avg skill 90 / Parent updates=5 with full sidebar (Roster/Materials/Summaries/Assessments/Events/Certificates); student dashboard shows Enrolled tracks=2 / Practice hours=3.2 and the Practice tab renders the activity dropdown, submit button, and the freshly created practice log with generated parent summary. Certificate PDF still returns valid application/pdf (3238 bytes, %PDF magic). Health flags remain database_mode=sqlite-demo, summary_mode=local-demo, storage_mode=local-demo. No new blockers.",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "POST /api/auth/login for coach and student returns token; coach.id=6 owns activities 1/2/3 (coach_id=6); student.id=7 enrolled in activities 1 and 2",
+    "GET /api/dashboard (coach) -> Assigned squads=3, Roster members=2, activities populated with coach_name='Jordan Lee'",
+    "GET /api/dashboard (student) -> Enrolled tracks=2, Practice hours>0, activities Basketball Elite Squad + Choir Performance Lab visible",
+    "POST /api/materials (coach, activity_id=1, youtube) -> 200 {id:4}",
+    "POST /api/ai/parent-summary (coach) -> 200, returned local-demo summary text",
+    "POST /api/assessments (coach) -> 200 {id:5}",
+    "POST /api/events (coach) -> 200 {id:3}",
+    "POST /api/certificates/generate (coach) -> 200 {id:5, download_url}",
+    "GET /api/certificates/5/download -> 200 application/pdf, 3238 bytes, %PDF- magic",
+    "POST /api/practice-logs (student, activity_id=1) -> 200, summary auto-generated",
+    "UI: coach demo login -> coach dashboard with correct stats/sidebar (screenshot captured)",
+    "UI: student demo login -> student dashboard, Practice tab shows activity dropdown + practice-submit-button visible + freshly created log rendered with parent summary"
+  ],
+  "failed": [],
+  "action_items": [
+    "None blocking. Optional polish: 'Sign out' button (data-testid=dashboard-logout-button) sits outside default viewport on 1365x768 and required scrolling in Playwright; consider making sidebar footer sticky or moving logout into the top bar for better discoverability.",
+    "Optional: expose activity titles as data-testid to make deeper UI assertions easier (current test relies on inner_text scan and picked up dropdown value 'Basketball Elite Squad' only after opening Practice tab)."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "test_credentials_used": [
+    "coach@talentdemo.com / Coach123!",
+    "student@talentdemo.com / Student123!",
+    "admin@talentdemo.com / Admin123!"
+  ],
+  "data_created_during_test": {
+    "material_id": 4,
+    "assessment_id": 5,
+    "event_id": 3,
+    "certificate_id": 5,
+    "practice_log_id": 5
+  },
+  "mocked_integrations_still_in_effect": [
+    "Azure OpenAI -> local-demo summary text",
+    "Azure Blob -> local file storage under backend/local_assets",
+    "SQL Server -> SQLite demo fallback (DATABASE_URL still unset)"
+  ]
+}
